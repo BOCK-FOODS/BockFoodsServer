@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,16 +10,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- ALL MODELS ---
+
 model User {
-  id        String   @id @default(cuid()) // Unique ID, cuid() is a secure, collision-resistant ID
-  email     String   @unique // Every user must have a unique email
-  name      String
-  password  String   // We will store a HASHED password here, not plain text
-  phone     String?  // The '?' makes this field optional
-  role      Role     @default(CUSTOMER) // The user's role, defaults to CUSTOMER
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String
+  password    String
+  phone       String?
+  role        Role         @default(CUSTOMER)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  restaurants Restaurant[]
+  cart        Cart?
+  orders      Order[]
 }
 
 enum Role {
@@ -30,4 +31,108 @@ enum Role {
   RESTAURANT_OWNER
   DELIVERY_PARTNER
   ADMIN
+}
+
+model Restaurant {
+  id        String     @id @default(cuid())
+  name      String
+  address   String
+  cuisine   String
+  imageUrl  String?
+  rating    Float      @default(0)
+  menuItems MenuItem[]
+  ownerId   String
+  owner     User       @relation(fields: [ownerId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model MenuItem {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  imageUrl    String?
+  isAvailable Boolean     @default(true)
+  restaurantId String
+  restaurant  Restaurant  @relation(fields: [restaurantId], references: [id])
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id            String       @id @default(cuid())
+  quantity      Int
+  cartId        String
+  cart          Cart         @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItemId    String?
+  menuItem      MenuItem?    @relation(fields: [menuItemId], references: [id])
+  groceryItemId String?
+  groceryItem   GroceryItem? @relation(fields: [groceryItemId], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@unique([cartId, menuItemId])
+  @@unique([cartId, groceryItemId])
+}
+
+model GroceryStore {
+  id    String        @id @default(cuid())
+  name  String
+  items GroceryItem[]
+}
+
+model GroceryCategory {
+  id       String        @id @default(cuid())
+  name     String        @unique
+  imageUrl String?
+  items    GroceryItem[]
+}
+
+model GroceryItem {
+  id          String           @id @default(cuid())
+  name        String
+  price       Float
+  stock       Int
+  imageUrl    String?
+  isFeatured  Boolean          @default(false)
+  storeId     String
+  store       GroceryStore     @relation(fields: [storeId], references: [id])
+  categoryId  String?
+  category    GroceryCategory? @relation(fields: [categoryId], references: [id])
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  totalAmount Float
+  status      String      @default("PENDING")
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrderItem {
+  id            String       @id @default(cuid())
+  quantity      Int
+  price         Float
+  orderId       String
+  order         Order        @relation(fields: [orderId], references: [id])
+  menuItemId    String?
+  menuItem      MenuItem?    @relation(fields: [menuItemId], references: [id])
+  groceryItemId String?
+  groceryItem   GroceryItem? @relation(fields: [groceryItemId], references: [id])
 }
